@@ -15,3 +15,12 @@ rel_1_114 Fri Mar 19 18:47:41 CET 2004
 rel_1_116 Sat Mar 20 12:49:38 CET 2004
        - work around bug in perl 5.8.0 (goto label not found)
          (compare testers result FAIL Vi-QuickFix-1.114 i586-linux 2.4.22-4tr)
+
+Sun Mar 21 23:26:28 CET 2004
+       - Bad tests on 5.8.0 and earlier show that tied STDOUT isn't
+         respected by all system messages.
+
+Vi-QuickFix-1_121 Sun May  9 00:17:32 CEST 2004
+       - The fix (use %SIG when tie doesn't work) results in a major
+         re-write.  Added doc chapters IMPLEMENTATION and CONFLICTS
+         to the pod.

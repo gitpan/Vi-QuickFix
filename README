@@ -3,12 +3,11 @@ NAME
 
 SYNOPSIS
       use Vi::QuickFix;
+      use Vi::QuickFix <errorfile>;
+      use Vi::QuickFix <options>;
+      use Vi::QuickFix <options> <errorfile>;
 
-      use Vi::QuickFix '/my/errorfile';
-
-      use Vi::QuickFix 'silent';
-
-      use Vi::QuickFix silent => '/my/errorfile';
+    where "<options>" is one or more of "silent", "sig", and "tie".
 
 DESCRIPTION
     When "Vi::QuickFix" is active, Perl logs errors and warnings to an
@@ -36,12 +35,13 @@ DESCRIPTION
         perl -MVi::QuickFix=/my/errorfile program
 
     "Vi::QuickFix" is meant to be used as a development tool, not to remain
-    in a distributed product. When the program ends, a warning is issued
-    that "Vi::QuickFix" is active. This has the side effect that there is
-    always an entry in the error file which points to the file where
-    "Vi::QuickFix" was invoked, normally the main program. "vi -q" will edit
-    this file when other error entries don't point it elsewhere. Use the
-    "silent" option with "Vi::QuickFix" to suppress this warning.
+    in a distributed product. When the program ends, a warning is issued,
+    indicating that "Vi::QuickFix" was active. This has the side effect that
+    there is always an entry in the error file which points to the source
+    file where "Vi::QuickFix" was invoked, normally the main program. "vi
+    -q" will edit this file when other error entries don't point it
+    elsewhere. Use the "silent" option with "Vi::QuickFix" to suppress this
+    warning.
 
     It is a fatal error when the error file cannot be opened. If the error
     file is empty (can only happen with "silent"), it is removed at the end
@@ -50,11 +50,67 @@ DESCRIPTION
 USAGE
     The module file .../Vi/QuickFix.pm can also be called as an executable.
     In that mode, it behaves (roughly) like the "cat" command, but also
-    moitors the stream and logs Perl warnings and error messages to the
+    monitors the stream and logs Perl warnings and error messages to the
     error file. The error file can be set through the switches "-f" or "-q".
     No warning about QuickFix activity is issued in this mode.
 
     Called with -v, it prints the version and exits.
+
+IMPLEMENTATION
+    For a debugging tool, an implementation note is in order.
+
+    Perl offers to obvious ways to watch and capture its error output. One
+    is through the (pseudo-) signal handlers $SIG{__WARN__} and
+    $SIG{__DIE__}. The other is through "tie"-ing the "STDERR" file handle.
+
+    "Vi::QuickFix" can use either method to create the error file. As it
+    turns out, the ability to tie "STDERR" is relatively new with Perl, as
+    of version 5.8.1. With Versions 5.8.0 and earlier, a number of internal
+    errors and warnings don't respect tie, so this method cannot be used.
+    With Perl versions ealier than 5.8.1, "Vi::QuickFix" uses %SIG handlers
+    to catch messages. With newer versions, "Vi::Quickfix" ties "STDERR" so
+    that it (additionally) writes to the error file.
+
+    A specific method can be requested through the options "sig" and "tie",
+    as in
+
+        use Vi::QuickFix qw( sig);
+
+    Requesting "tie" with a Perl version that can't handle it is a fatal
+    error, so the only option that does anything useful is "sig" with a
+    new-ish Perl. It can be useful when "tie"-ing STDERR conflicts with the
+    surrounding code.
+
+CONFLICTS
+    Such a conflict can occur with the "sig" method as well, and it can
+    happen in two ways. Either "Vi::QuickFix" already finds a resource (a
+    %SIG handler or a tie on "STDERR") occupied at "use" time, or the
+    surrounding code commandeers the resource after the fact.
+
+    All such conflicts can be avoided by using "Vi::QuickFix" in a separate
+    process, as noted under ""USAGE".
+
+    However, if "STDERR" is already tied when "Vi::QuickFix" is "use"d, it
+    cannot employ the "tie" method, and by default reverts to "sig". If the
+    "tie" method is specifically requested, a fatal error results.
+
+    If the "sig" method finds one of the handlers ("__WARN__" and "__DIE__")
+    already occupied, it chains to the previous handler after doing its
+    thing, so that is not considered an obstacle. "Chaining" file ties is
+    harder, and has not been attempted.
+
+    If "Vi::QuickFix" is already active, the surrounding code may later
+    occupy a resource it is using. There is little that can be done when
+    that happens, except issue a warning which is also logged to the error
+    file. This can help in finding the source of the conflict. In "silent"
+    mode, no such warning is given.
+
+    The warning is triggered when the corresponding resource is overwritten,
+    except when the overwriting program keeps a copy of it. It is then
+    assumed that the program will keep it functioning. Since we're still
+    talking implementation -- it is actually triggered through a DESTROY
+    method when the corresponding object goes out of scope. %SIG handlers
+    are code objects just for this reason.
 
 BUGS
     "no Vi::QuickFix" has no effect
