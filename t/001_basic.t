@@ -120,6 +120,34 @@ system( "perl -Ilib -MVi::QuickFix=silent -we';'");
 ok( not( -e 'errors.err'), "Empty error file erased");
 }}
 
+# error behavior
+BEGIN { $n_tests += 4 }
+{{
+# unable to create error file
+require Vi::QuickFix;
+eval { Vi::QuickFix->import( 'gibsnich/wirdnix') };
+like( $@, qr/Can't create error file/, "Died without error file");
+
+# refuse to re-tie STDERR
+# not sure why 'use lib' is needed here.  the previous test runs
+# without it.
+use lib "./lib";
+require Tie::Handle;
+tie *STDERR, 'Tie::StdHandle', '>&STDERR';
+require Vi::QuickFix;
+eval { Vi::QuickFix->import };
+like( $@, qr/STDERR already tied/, "Refused to re-tie");
+untie *STDERR;
+
+# accept second use (no action then)
+Vi::QuickFix->import( 'silent');
+ok( tied *STDERR, 'Second use: STDERR is tied');
+eval { Vi::QuickFix->import };
+ok( ! $@, 'Second use no error');
+untie *STDERR;
+
+}}
+
 BEGIN { plan tests => $n_tests }
 
 #####################################################################

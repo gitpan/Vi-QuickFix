@@ -1,12 +1,17 @@
 Revision history for Perl module Vi::QuickFix
 
-Revision: 1.101 Fri Mar 12 22:56:37 2004
+Revision 1.101 Fri Mar 12 22:56:37 2004
        - original version; created by ExtUtils::ModuleMaker 0.32
 
-Revision: 1.110 Mon Mar 15 19:58:49 CET 2004
-       - first release, tagged rel-1-110
+rel_1_110 Mon Mar 15 19:58:49 CET 2004
+       - first release
 
-$Revision: 1.103 $ Fri Mar 19 18:47:41 CET 2004
-bugfix in message-recognizing regex
-give warning except in silent mode, erase empty error file
-pod revised, README added
+rel_1_114 Fri Mar 19 18:47:41 CET 2004
+       - bugfix in message-recognizing regex
+       - give warning except in silent mode, erase empty error file
+       - pod revised, README added
+       - second release
+
+rel_1_116 Sat Mar 20 12:49:38 CET 2004
+       - work around bug in perl 5.8.0 (goto label not found)
+         (compare testers result FAIL Vi-QuickFix-1.114 i586-linux 2.4.22-4tr)

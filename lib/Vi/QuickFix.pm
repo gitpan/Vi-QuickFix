@@ -1,20 +1,21 @@
 #!/usr/bin/perl
 package Vi::QuickFix;
 use strict; use warnings;
+use Carp;
 
-our $VERSION     = ('$Revision: 1.114 $' =~ /(\d+.\d+)/)[ 0];
+our $VERSION     = ('$Revision: 1.116 $' =~ /(\d+.\d+)/)[ 0];
 
-goto end if caller; # quit, returning 1
+unless ( caller ) {
+    # process <> if called as an executable
+    require Getopt::Std;
+    Getopt::Std::getopts( 'q:f:v', \ my %opt);
+    print "$0 version $VERSION\n" and exit 0 if $opt{ v};
+    my $file = $opt{ q} || $opt{ f} || 'errors.err';
 
-# process <> if called as an executable
-require Getopt::Std;
-Getopt::Std::getopts( 'q:f:v', \ my %opt);
-print "$0 version $VERSION\n" and exit 0 if $opt{ v};
-my $file = $opt{ q} || $opt{ f} || 'errors.err';
-
-tie *STDOUT, 'Vi::QuickFix::Tee', '>&STDOUT', $file;
-print while <>; # copy everything to tee'd output
-exit;
+    tie *STDOUT, 'Vi::QuickFix::Tee', '>&STDOUT', $file;
+    print while <>; # copy everything to tee'd output
+    exit;
+}
 
 {{ # switch off otherwise obligatory warning
 my $silent;
@@ -29,6 +30,11 @@ sub import {
     if ( $_[ 0] and $_[ 0] eq 'silent' ) {
         set_silent;
         shift;
+    }
+    if ( tied *STDERR ) {
+        my $tieclass = ref tied *STDERR;
+        return if $tieclass->isa( 'Vi::QuickFix::Tee'); # don't tie again
+        croak( "STDERR already tied to class '$tieclass'");
     }
     my $file = shift || 'errors.err';
     tie *STDERR, 'Vi::QuickFix::Tee', '>&STDERR', $file;
@@ -87,7 +93,7 @@ sub WRITE {
 }
 }}
 
-end: 1;
+1;
 
 __END__
 
