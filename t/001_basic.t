@@ -63,10 +63,10 @@ open my $f, "$command |";
 ok( defined $f, "Got a handle");
 like( scalar <$f>, qr/version *\d+\.\d+/, "-v returns version");
 
-my $command = qq(perl lib/Vi/QuickFix.pm -f *ERRFILE* errtxt) . REDIRECT;
+$command = qq(perl lib/Vi/QuickFix.pm -f *ERRFILE* errtxt) . REDIRECT;
 run_tests( 'command_file', 'mine', $command);
 
-$command = qq(perl ./lib/Vi/QuickFix.pm -q *ERRFILE* <errtxt) . REDIRECT;
+$command = qq(perl lib/Vi/QuickFix.pm -q *ERRFILE* <errtxt) . REDIRECT;
 run_tests( 'command_stdin', 'mine', $command);
 }}
 unlink 'errtxt';
@@ -87,9 +87,37 @@ for ( CASES ) {
     unlink 'errors.err';
     system "perl -Ilib -MVi::QuickFix -we '$prog' >/dev/null 2>&1";
     ok( open( my $e, 'errors.err'), "$case open");
-    like( scalar <$e>, qr/^.*:\d+:$msg/, "$case message");
+    like( <$e>, qr/^.*:\d+:$msg/, "$case message");
 }
+}}
+
+BEGIN { $n_tests += 7 }
+{{
+# do we get the obligatory warning?
 unlink 'errors.err';
+system qq(perl -Ilib -MVi::QuickFix -we 'warn "abc"' >/dev/null 2>&1);
+ok( open( my $e, 'errors.err'), "obligatory message open");
+my $last;
+$last = $_ while <$e>;
+like( $last, qr/Vi::QuickFix/, "obligatory message found");
+
+# does silent mode work?
+unlink 'errors.err';
+system qq(perl -Ilib -MVi::QuickFix=silent -we 'warn "abc"' >/dev/null 2>&1);
+ok( open( $e, 'errors.err'), "silent mode open");
+$last = $_ while <$e>;
+unlike( $last, qr/Vi::QuickFix/, "silent mode message not found");
+
+# do we not get it in exec mode?
+unlink 'errors.err';
+system 'perl lib/Vi/QuickFix.pm </dev/null >/dev/null 2>&1';
+ok( not( -e 'errors.err'), "no message in exec mode");
+
+# is an empty error file removed (needs silent mode)?
+system "perl -Ilib -MVi::QuickFix -we ';' >/dev/null 2>&1"; # create error file
+ok( -e 'errors.err', "Error file exists");
+system( "perl -Ilib -MVi::QuickFix=silent -we';'");
+ok( not( -e 'errors.err'), "Empty error file erased");
 }}
 
 BEGIN { plan tests => $n_tests }
@@ -101,7 +129,7 @@ sub  run_tests {
     my $errfile = ERRFILE->{ $errf};
     $command =~ s/\*ERRFILE\*/$errfile/g;
     unlink $errfile;
-    system( $command) == 0 or die "command in error: '$command'";
+    system( $command);
 #   don't forget PER_CALL when uncommenting
 #   ok( -s $errfile, "$call $errf size");
     ok( open( my $e, $errfile), "$call $errf open");
@@ -110,4 +138,5 @@ sub  run_tests {
         $i ++;
         like( scalar <$e>, qr/^(.*?):\d+:$_$/, "$call $errf $i");
     }
+    unlink $errfile;
 }

@@ -1,7 +1,12 @@
 Revision history for Perl module Vi::QuickFix
 
-$Revision: 1.101 $ Fri Mar 12 22:56:37 2004
+Revision: 1.101 Fri Mar 12 22:56:37 2004
        - original version; created by ExtUtils::ModuleMaker 0.32
 
-$Revision: 1.110 $ Mon Mar 15 19:58:49 CET 2004
-       - preparing first release
+Revision: 1.110 Mon Mar 15 19:58:49 CET 2004
+       - first release, tagged rel-1-110
+
+$Revision: 1.103 $ Fri Mar 19 18:47:41 CET 2004
+bugfix in message-recognizing regex
+give warning except in silent mode, erase empty error file
+pod revised, README added
