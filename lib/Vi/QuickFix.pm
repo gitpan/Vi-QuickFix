@@ -5,7 +5,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = ('$Revision: 1.121 $' =~ /(\d+.\d+)/)[ 0];
+    $VERSION = ('$Revision: 1.122 $' =~ /(\d+.\d+)/)[ 0];
 }
 
 unless ( caller ) {
@@ -199,12 +199,12 @@ where C<E<lt>optionsE<gt>> is one or more of C<silent>, C<sig>, and C<tie>.
 
 When C<Vi::QuickFix> is active, Perl logs errors and warnings to an
 I<error file> named, by default, C<errors.err>.  This file is picked
-up when vim is called in QuickFix mode as C<vim -q>.  Vim starts editing the
-perl source where the first error occured, at the error location.
-QuickFix allows you to jump from one error to another, switching files
-as necessary.  Type C<:help quickfix> in vim for a description.
+up when you type C<:cf> in a running vim editor.  Vim will jump to the
+location of the first error recorded in the error file.  C<:cn> takes
+you to the next error, switching files if necessary.  There are more
+QuickFix commands in vim.  Type C<:help quickfix> for a description.
 
-To activate QuickFix support, add
+To activate QuickFix support for a Perl source, add
 
     use Vi::QuickFix;
 

@@ -24,3 +24,10 @@ Vi-QuickFix-1_121 Sun May  9 00:17:32 CEST 2004
        - The fix (use %SIG when tie doesn't work) results in a major
          re-write.  Added doc chapters IMPLEMENTATION and CONFLICTS
          to the pod.
+
+Vi-QuickFix-1_121 Thu Jul 29 19:45:18 CEST 2004
+       - Doc changes: Now describing ":cf" instead of "vi -q".
+       - Another reason for a re-release with little change is that
+         spurious failed tests have come back from CPAN testers.
+         (The target machine(s) failed to load a standard module.)
+         The re-release will hopefully heal that.

@@ -12,12 +12,12 @@ SYNOPSIS
 DESCRIPTION
     When "Vi::QuickFix" is active, Perl logs errors and warnings to an
     *error file* named, by default, "errors.err". This file is picked up
-    when vim is called in QuickFix mode as "vim -q". Vim starts editing the
-    perl source where the first error occured, at the error location.
-    QuickFix allows you to jump from one error to another, switching files
-    as necessary. Type ":help quickfix" in vim for a description.
+    when you type ":cf" in a running vim editor. Vim will jump to the
+    location of the first error recorded in the error file. ":cn" takes you
+    to the next error, switching files if necessary. There are more QuickFix
+    commands in vim. Type ":help quickfix" for a description.
 
-    To activate QuickFix support, add
+    To activate QuickFix support for a Perl source, add
 
         use Vi::QuickFix;
 
