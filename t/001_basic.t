@@ -1,45 +1,50 @@
 # -*- perl -*-
-
+use strict; use warnings;
 use Test::More;
 my $n_tests;
+
+# goto this;
+
+use constant DEVNULL => $^O eq 'MSWin32' ? 'NUL' : '/dev/null';
+use constant REDIRECT => '>' . DEVNULL . ' 2>' . DEVNULL;
+use constant Q_REDIRECT => '" ' . REDIRECT;
 
 use constant ERR_TXT => ( 'boo', 'bah');
 use constant ERRFILE => {
     mine => 'my_errors',
     std  => 'errors.err',
 };
-use constant REDIRECT => ">/dev/null 2>&1";
-use constant Q_REDIRECT => "'" . REDIRECT;
-use constant PER_CALL => 1 + ERR_TXT; # n of tests per call of run_tests()
+# number of tests per call of run_tests()
+use constant PER_CALL => @{ [ ERR_TXT]};
 
 BEGIN { $n_tests += 2 * PER_CALL }
 {{
-my $command = qq(perl -Ilib -MVi::QuickFix -e');
-$command .= qq(warn "$_"; ) for ERR_TXT;
+my $command = qq(perl -Ilib -e");
+$command .= qq(use Vi::QuickFix;);
+$command .= qq( warn qq($_); print STDERR qq(# something else\\n);) for ERR_TXT;
+$command .= Q_REDIRECT;
+run_tests( 'module_use', 'std', $command);
+
+$command = qq(perl -Ilib -MVi::QuickFix -e");
+$command .= qq( warn qq($_);) for ERR_TXT;
 $command .= Q_REDIRECT;
 run_tests( 'module_switch', 'std', $command);
 
-$command = qq(perl -Ilib -e');
-$command .= qq(use Vi::QuickFix; );
-$command .= qq(warn "$_"; print STDERR "# something else\n"; ) for ERR_TXT;
-$command .= Q_REDIRECT;
-run_tests( 'module_use', 'std', $command);
 }}
 
 BEGIN { $n_tests += 2 * PER_CALL }
 {{
-my $command = qq(perl -Ilib -MVi::QuickFix=*ERRFILE* -e');
-$command .= qq(warn "$_"; ) for ERR_TXT;
+my $command = qq(perl -Ilib -MVi::QuickFix=*ERRFILE* -e");
+$command .= qq(warn qq($_); ) for ERR_TXT;
 $command .= Q_REDIRECT;
 run_tests( 'module_switch', 'mine', $command);
 
-$command = qq(perl -Ilib -e');
+$command = qq(perl -Ilib -e");
 $command .= qq(use Vi::QuickFix "*ERRFILE*"; );
-$command .= qq(warn "$_"; print STDERR "something else\n"; ) for ERR_TXT;
+$command .= qq(warn qq($_); print STDERR qq(something else\\n); ) for ERR_TXT;
 $command .= Q_REDIRECT;
 run_tests( 'module_use', 'mine', $command);
 }}
-
 
 ### If $] >= 5.008001, the above has tested "tie" mode, and we now
 # want to check "sig" mode.  If $] < 5.008001, the above has tested
@@ -53,14 +58,14 @@ BEGIN { $n_tests += 2 * PER_CALL }
 SKIP: {{
 skip REASON_LOW, 2 * PER_CALL if LOW_VERSION;
 
-my $command = qq(perl -Ilib -MVi::QuickFix=sig -e');
-$command .= qq(warn "$_"; ) for ERR_TXT;
+my $command = qq(perl -Ilib -MVi::QuickFix=sig -e");
+$command .= qq(warn qq($_); ) for ERR_TXT;
 $command .= Q_REDIRECT;
 run_tests( 'module_switch(sig)', 'std', $command);
 
-$command = qq(perl -Ilib -e');
+$command = qq(perl -Ilib -e");
 $command .= qq(use Vi::QuickFix qw( sig); );
-$command .= qq(warn "$_"; print STDERR "# something else\n"; ) for ERR_TXT;
+$command .= qq(warn qq($_); print STDERR qq(# something else\\n); ) for ERR_TXT;
 $command .= Q_REDIRECT;
 run_tests( 'module_use(sig)', 'std', $command);
 }}
@@ -69,36 +74,35 @@ BEGIN { $n_tests += 2 * PER_CALL }
 SKIP: {{
 skip REASON_LOW, 2 * PER_CALL if LOW_VERSION;
 
-my $command = qq(perl -Ilib -MVi::QuickFix=sig,*ERRFILE* -e');
-$command .= qq(warn "$_"; ) for ERR_TXT;
+my $command = qq(perl -Ilib -MVi::QuickFix=sig,*ERRFILE* -e");
+$command .= qq(warn qq($_); ) for ERR_TXT;
 $command .= Q_REDIRECT;
 run_tests( 'module_switch(sig)', 'mine', $command);
 
-$command = qq(perl -Ilib -e');
+$command = qq(perl -Ilib -e");
 $command .= qq(use Vi::QuickFix "sig", "*ERRFILE*"; );
-$command .= qq(warn "$_"; print STDERR "something else\n"; ) for ERR_TXT;
+$command .= qq(warn qq($_); print STDERR qq(something else\\n); ) for ERR_TXT;
 $command .= Q_REDIRECT;
 run_tests( 'module_use(sig)', 'mine', $command);
 }}
 
 ### more non-specific tests (as to sig/warn)
 
-# prepare input file for executable
+# prepare input file for executable (used in two test blocks)
 open my $infile, '>', 'infile' or die;
 print $infile "$_ at some_file line 12.\nsomething_else\n" for ERR_TXT;
 close $infile;
 
 BEGIN { $n_tests += 2 * ( PER_CALL + 1) }
 {{
-my $command = qq(perl lib/Vi/QuickFix.pm infile) . '>outfile 2>/dev/null';
+my $command = qq(perl lib/Vi/QuickFix.pm infile >outfile 2>) . DEVNULL;
 run_tests( 'command_file', 'std', $command);
-is( -s 'outfile', -s 'infile', 'input written to stdout');
+is( -s 'outfile', -s 'infile', 'input copied to stdout');
 
-$command = qq(perl ./lib/Vi/QuickFix.pm <infile) . '>outfile 2>/dev/null';
+$command = qq(perl ./lib/Vi/QuickFix.pm <infile >outfile 2>) . DEVNULL;
 run_tests( 'command_stdin', 'std', $command);
-is( -s 'outfile', -s 'infile', 'file written to stdout');
+is( -s 'outfile', -s 'infile', 'file copied to stdout');
 }}
-
 
 BEGIN { $n_tests += 2 + 2 * PER_CALL }
 {{
@@ -119,64 +123,95 @@ unlink 'infile', 'outfile';
 
 # do we catch all types of STDERR output?
 use constant CASES => (
-    [ runtime_warning =>     '"a" + 0',           'Argument "a"' ],
-    [ runtime_error =>       'chomp ${ []}',      'Not a SCALAR' ],
+    [ runtime_warning =>     'qq(a) + 0',         'Argument "a"' ],
+    [ runtime_error =>       'my %h = %{ []}',    'Can\'t coerce' ],
     [ compiletime_warning => 'my @y; @y = @y[0]', 'Scalar value' ],
     [ compiletime_error =>   '%',                 'syntax error' ],
-    [ explicit_warning =>    'warn "xxx"',        'xxx'          ],
-    [ explicit_error =>      'die "yyy"',         'yyy'          ],
+    [ explicit_warning =>    'warn qq(xxx)',      'xxx'          ],
+    [ explicit_error =>      'die qq(yyy)',       'yyy'          ],
 );
-BEGIN { $n_tests += 2 * CASES }
+BEGIN { $n_tests += @{ [ CASES]} }
 {{
 for ( CASES ) {
     my ( $case, $prog, $msg) = @$_;
     unlink 'errors.err';
-    system "perl -Ilib -MVi::QuickFix -we '$prog' >/dev/null 2>&1";
-    ok( open( my $e, 'errors.err'), "$case open");
-    like( <$e>, qr/^.*:\d+:$msg/, "$case message");
+    my $cmd = qq(perl -Ilib -MVi::QuickFix -we "$prog" ) . REDIRECT;
+    system $cmd;
+    like( read_errfile(), qr/^.*:\d+:$msg/, "$case message");
 }
 }}
 
 # repeat these in "sig" mode, if both modes possible
-BEGIN { $n_tests += 2 * CASES }
+BEGIN { $n_tests += @{ [ CASES]} }
 SKIP: {{
-skip REASON_LOW, 2 * CASES if LOW_VERSION;
+skip REASON_LOW, scalar @{ [ CASES]} if LOW_VERSION;
 for ( CASES ) {
     my ( $case, $prog, $msg) = @$_;
     unlink 'errors.err';
-    system "perl -Ilib -MVi::QuickFix=sig -we '$prog' >/dev/null 2>&1";
-    ok( open( my $e, 'errors.err'), "$case(sig) open");
-    like( <$e>, qr/^.*:\d+:$msg/, "$case(sig) message");
+    my $cmd =
+        qq(perl -Ilib -MVi::QuickFix=sig -we "$prog" ) . REDIRECT;
+    system $cmd;
+    like( read_errfile(), qr/^.*:\d+:$msg/, "$case(sig) message");
 }
 }}
 
-BEGIN { $n_tests += 7 }
+BEGIN { $n_tests += 8 }
 {{
 # do we get the obligatory warning?
 unlink 'errors.err';
-system qq(perl -Ilib -MVi::QuickFix -we 'warn "abc"' >/dev/null 2>&1);
-ok( open( my $e, 'errors.err'), "obligatory message open");
-my $last;
-$last = $_ while <$e>;
-like( $last, qr/QuickFix.*ended/, "obligatory message found");
+my $cmd =
+    qq(perl -Ilib -MVi::QuickFix -we "warn qq(abc)" ) . REDIRECT;
+system $cmd;
+like( (read_errfile())[ -1],
+    qr/QuickFix.*active/, "obligatory message found");
 
 # does silent mode work?
 unlink 'errors.err';
-system qq(perl -Ilib -MVi::QuickFix=silent -we 'warn "abc"' >/dev/null 2>&1);
-ok( open( $e, 'errors.err'), "silent mode open");
-$last = $_ while <$e>;
-unlike( $last, qr/Vi::QuickFix/, "silent mode message not found");
+system qq(perl -Ilib -MVi::QuickFix=silent -we 'warn "abc"' ) . REDIRECT;
+unlike( (read_errfile())[ -1],
+    qr/Vi::QuickFix/, "silent mode message not found");
+
+# do we get only one obwarn when we fork?
+unlink 'errors.err';
+system qq(perl -Ilib -MVi::QuickFix -efork ) . REDIRECT;
+is( scalar( () = read_errfile()), 1, "fork one message");
 
 # do we not get it in exec mode?
 unlink 'errors.err';
-system 'perl lib/Vi/QuickFix.pm </dev/null >/dev/null 2>&1';
+system qq(perl lib/Vi/QuickFix.pm <) . DEVNULL . ' ' . REDIRECT;
 ok( not( -e 'errors.err'), "no message in exec mode");
 
 # is an empty error file removed (needs silent mode)?
-system "perl -Ilib -MVi::QuickFix -we ';' >/dev/null 2>&1"; # create error file
+system qq(perl -Ilib -MVi::QuickFix -we ';' ) . REDIRECT; # create error file
 ok( -e 'errors.err', "Error file exists");
-system( "perl -Ilib -MVi::QuickFix=silent -we';'");
+system( qq(perl -Ilib -MVi::QuickFix=silent -we";"));
 ok( not( -e 'errors.err'), "Empty error file erased");
+
+# Does it behave under -c?
+unlink qw( stderr_out errors.err);
+system qq(perl -c -Ilib -we"use Vi::QuickFix" 2>stderr_out);
+is( -s( 'errors.err') || 0, 0, "-c: error file empty");
+like( read_errfile( 'stderr_out'), qr/^-e syntax OK/, "-c: -e syntax OK");
+unlink qw( stderr_out errors.err);
+}}
+
+### environment variable VI_QUICKFIX_SOURCEFILE
+BEGIN { $n_tests += 2 }
+{{
+my $cmd = qq(perl -Ilib -MVi::QuickFix ) . REDIRECT;
+
+delete $ENV{ VI_QUICKFIX_SOURCEFILE};
+open my $p, '|-', $cmd;
+print $p 'warn "boo"';
+close $p;
+like ( read_errfile(), qr/^-:/, 'env-var unset, found "-"');
+
+$ENV{ VI_QUICKFIX_SOURCEFILE} = 'somefile.pl';
+open $p, '|-', $cmd;
+print $p 'warn "boo"';
+close $p;
+like ( read_errfile(), qr/^$ENV{ VI_QUICKFIX_SOURCEFILE}:/,
+    "env-var set, found filename");
 }}
 
 # error behavior
@@ -229,11 +264,19 @@ sub  run_tests {
     system( $command);
 #   don't forget PER_CALL when uncommenting
 #   ok( -s $errfile, "$call $errf size");
-    ok( open( my $e, $errfile), "$call $errf open");
+    my @lines = read_errfile( $errfile);
     my $i;
     for ( ERR_TXT ) {
         $i ++;
-        like( scalar <$e>, qr/^(.*?):\d+:$_$/, "$call $errf $i");
+        my $line = shift @lines;
+        like( $line, qr/^(.*?):\d+:$_$/, "$call $errf $i");
     }
     unlink $errfile;
+}
+
+sub read_errfile {
+    my $file = shift || 'errors.err';
+    open my( $e), $file or return;
+    return join '', <$e> unless wantarray;
+    return <$e>;
 }

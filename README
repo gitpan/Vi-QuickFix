@@ -38,18 +38,36 @@ DESCRIPTION
     in a distributed product. When the program ends, a warning is issued,
     indicating that "Vi::QuickFix" was active. This has the side effect that
     there is always an entry in the error file which points to the source
-    file where "Vi::QuickFix" was invoked, normally the main program. "vi
-    -q" will edit this file when other error entries don't point it
-    elsewhere. Use the "silent" option with "Vi::QuickFix" to suppress this
-    warning.
+    file where "Vi::QuickFix" was invoked, normally the main program. ":cf"
+    will take you there when other error entries don't point it elsewhere.
+    Use the "silent" option with "Vi::QuickFix" to suppress this warning.
 
     It is a fatal error when the error file cannot be opened. If the error
     file is empty (can only happen with "silent"), it is removed at the end
     of the run.
 
+ENVIRONMENT
+    "Vi::QuickFix" recognizes the environment variable
+    "VI_QUICKFIX_SOURCEFILE"
+
+    When Perl reads its source from "STDIN", error messages and warnings
+    will contain the string "-" where the source file name would otherwise
+    appear. The environment variable "VI_QUICKFIX_SOURCEFILE" can be set to
+    a filename, which will replace "-" in those messages. If no "-" appears
+    as a file name, setting the variable has no effect.
+
+    This somewhat peculiar behavior can be useful if you call perl (with
+    "Vi::QuickFix") from within a vim run, as in ":w !perl -MVi::QickFix".
+    When you set the environment variable "VI_QUICKFIX_SOURCEFILE" to the
+    name of the file you are editing, this fools vim into doing the right
+    thing when it encounters the modified messages.
+
+    This is an experimental feature, the behavior may change in future
+    releases.
+
 USAGE
     The module file .../Vi/QuickFix.pm can also be called as an executable.
-    In that mode, it behaves (roughly) like the "cat" command, but also
+    In that mode, it behaves basically like the "cat" command, but also
     monitors the stream and logs Perl warnings and error messages to the
     error file. The error file can be set through the switches "-f" or "-q".
     No warning about QuickFix activity is issued in this mode.
@@ -78,8 +96,8 @@ IMPLEMENTATION
 
     Requesting "tie" with a Perl version that can't handle it is a fatal
     error, so the only option that does anything useful is "sig" with a
-    new-ish Perl. It can be useful when "tie"-ing STDERR conflicts with the
-    surrounding code.
+    new-ish Perl. It can be useful when "tie"-ing "STDERR" conflicts with
+    the surrounding code.
 
 CONFLICTS
     Such a conflict can occur with the "sig" method as well, and it can
@@ -111,6 +129,9 @@ CONFLICTS
     talking implementation -- it is actually triggered through a DESTROY
     method when the corresponding object goes out of scope. %SIG handlers
     are code objects just for this reason.
+
+VERSION
+    This document pertains to "Vi::Quickfix" version 1.129
 
 BUGS
     "no Vi::QuickFix" has no effect

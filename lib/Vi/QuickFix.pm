@@ -1,15 +1,17 @@
 #!/usr/bin/perl
 package Vi::QuickFix;
+use 5.008_000;
 use strict; use warnings;
 use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = ('$Revision: 1.122 $' =~ /(\d+.\d+)/)[ 0];
+    $VERSION = ('$Revision: 1.129 $' =~ /(\d+.\d+)/)[ 0];
 }
 
 unless ( caller ) {
     # process <> if called as an executable
+    set_exec_mode(); # signal fact ( to END processing)
     require Getopt::Std;
     Getopt::Std::getopts( 'q:f:v', \ my %opt);
     print "$0 version $VERSION\n" and exit 0 if $opt{ v};
@@ -20,30 +22,37 @@ unless ( caller ) {
 
 ###########################################################################
 
-{{ # space for private variables
+# keywords for ->import
+use constant KEYWORDS => qw( silent sig tie);
+
+# environment variable(s)
+use constant VAR_SOURCEFILE => 'VI_QUICKFIX_SOURCEFILE';
+
+BEGIN {{ # space for private variables
 
 # user parameters:
-my $errfile;   # name of error file
-my $silent;    # switch off otherwise obligatory warning
-my $relay;     # method of transfer to error file: "sig" or "tie"
+my $errfile = 'errors.err'; # name of error file
+my $silent = 0;             # switch off otherwise obligatory warning
+my $relay = '';             # method of transfer to error file: "sig" or "tie"
 
-# keywords for import
-use constant KEYWORDS => qw( silent sig tie);
+sub make_silent { $silent = 1 }
+sub is_silent { $silent } # should this be a package variable?
 
 sub import {
     my $class = shift;
     my %keywords;
     @keywords{ KEYWORDS()} = ();
     $keywords{ shift()} = 1 while @_ and exists $keywords{ $_[ 0]};
-    
+
     err_open( shift);
-    $silent = 1 if $keywords{ silent};
+    make_silent if $keywords{ silent};
     my ( $wanted_relay) = grep $keywords{ $_}, qw( sig tie);
     $relay = $wanted_relay || default_relay();
     if ( my $reason = relay_obstacle( $relay) ) {
         croak( "Cannot use '$relay' method: $reason");
     }
-    if ( $relay eq 'tie' ) {
+    if ( $relay eq 'tie' and not tied *STDERR ) {
+        # if tied, it's tied to ourselves (otherwise obstacle)
         tie *STDERR, 'Vi::QuickFix::Tee', '>&STDERR';
     } elsif ( $relay eq 'sig' ) {
         $SIG{ $_} = Vi::QuickFix::SigHandler->new( $_) for
@@ -51,50 +60,55 @@ sub import {
     }
 }
 
-sub is_silent { $silent } # should this be a package variable?
-
 # internal variables
 my $errhandle; # write formatted errors here
 my $errcount;  # for END to know if file can be erased. (-s would need flush)
                # otherwise unused
+my $exec_mode; # set if lib file is run as a script
+sub set_exec_mode { $exec_mode = 1 }
 
 # open the given file (or default), set $errfile and $errhandle
 sub err_open {
     $errfile = shift || 'errors.err';
-    $errhandle =IO::File->new( "> $errfile") or croak(
+    $errhandle = IO::File->new( "> $errfile") or croak(
         "Can't create error file '$errfile': $!"
     );
 }
 
+sub err_close { close $errhandle if $errhandle }
+
+use Carp;
 # write to the error file and increase errcount if appropriate,
 use constant PERL_MSG => qr/^(.*?) at (.*?) line (\d+)(\.?|,.*)$/;
 sub err_print {
     # handle multiple, possibly multi-line messages (though usually
     # there will be only one)
+#   Carp::confess( 'err_print');
     for ( map split( /\n+/), @_ ) {
         my ( $message, $file, $line, $rest) = $_ =~ PERL_MSG or next;
         $message .= $rest if $rest =~ s/^,//;
+        $file eq '-' and defined and $file = $_ for $ENV{ VAR_SOURCEFILE()};
         print $errhandle "$file:$line:$message\n";
         $errcount ++;
     }
 }
 
 # issue warning, erase error file
+my $end_entiteled = $$;
 END {
-    # don't do any of this in exec mode
-    return unless caller;
-    return unless $errhandle; # should not happen
-    # issue warning
-    carp "QuickFix processing ended" unless $silent;
+    # issue warning (only original process, and not in exec mode)
+    carp "QuickFix active" unless
+        is_silent or $exec_mode or $$ != $end_entiteled;
     # silently remove objects
-    $silent = 1;
+    make_silent();
     if ( $relay eq 'tie' ) {
         untie *STDERR;
     } else {
         $SIG{ $_} = 'DEFAULT' for qw( __WARN__ __DIE__);
     }
-    # remove file if created by us and empty
-    unlink $errfile unless $errcount;
+    # remove file if created by us and empty (only original process)
+    err_close(); # so we can unlink under windows
+    unlink $errfile if not $errcount and $$ == $end_entiteled;
 }
 
 }}
@@ -106,9 +120,10 @@ sub relay_obstacle {
     if ( $] < MINVERS ) {
         return "perl version is $], must be >= @{[ MINVERS]}";
     }
-    if ( my $tieclass = tied *STDERR ) {
-        return "STDERR already tied to '$tieclass'"; # unless
-#           $tieclass->isa( 'Vi::QuickFix::Tee');
+    if ( my $tie_ob = tied *STDERR ) {
+        my $tieclass = ref $tie_ob;
+        return "STDERR already tied to '$tieclass'" unless
+            $tieclass eq 'Vi::QuickFix::Tee';
     }
     return '';
 }
@@ -122,7 +137,7 @@ use Carp qw( shortmess);
 BEGIN { our @CARP_NOT = qw( Vi::QuickFix) }
 sub DESTROY {
     my $ob = shift;
-    return if Vi::QuickFix::is_silent;
+    return if Vi::QuickFix::is_silent or $^C; # it's a mess under -c
     my $id = $ob->id;
     my $msg = shortmess( "QuickFix $id processing interrupted");
     # simulate intact QuickFix processing
@@ -177,7 +192,6 @@ sub WRITE {
 
 sub id { 'STDERR' }
 
-
 1;
 
 __END__
@@ -226,7 +240,7 @@ in a distributed product.  When the program ends, a warning is issued,
 indicating that C<Vi::QuickFix> was active.
 This has the side effect that there is always an entry in the error file
 which points to the source file where C<Vi::QuickFix> was invoked, normally
-the main program.  C<vi -q> will edit this file when other error entries
+the main program. C<:cf> will take you there when other error entries
 don't point it elsewhere.  Use the C<silent> option with C<Vi::QuickFix> to
 suppress this warning.
 
@@ -234,10 +248,29 @@ It is a fatal error when the error file cannot be opened.  If the error
 file is empty (can only happen with C<silent>), it is removed at the end
 of the run.
 
+=head1 ENVIRONMENT
+
+C<Vi::QuickFix> recognizes the environment variable C<VI_QUICKFIX_SOURCEFILE>
+
+When Perl reads its source from C<STDIN>, error messages and warnings
+will contain the string "-" where the source file name would otherwise
+appear.  The environment variable C<VI_QUICKFIX_SOURCEFILE> can be set
+to a filename, which will replace "-" in those messages. If no "-" appears
+as a file name, setting the variable has no effect.
+
+This somewhat peculiar behavior can be useful if you call perl (with
+C<Vi::QuickFix>) from within a vim run, as in C<:w !perl -MVi::QickFix>.
+When you set the environment variable C<VI_QUICKFIX_SOURCEFILE> to the
+name of the file you are editing, this fools vim into doing the right
+thing when it encounters the modified messages.
+
+This is an experimental feature, the behavior may change in future
+releases.
+
 =head1 USAGE
 
 The module file .../Vi/QuickFix.pm can also be called as an executable.
-In that mode, it behaves (roughly) like the C<cat> command, but also
+In that mode, it behaves basically like the C<cat> command, but also
 monitors the stream and logs Perl warnings and error messages to the
 error file.  The error file can be set through the switches C<-f> or C<-q>.
 No warning about QuickFix activity is issued in this mode.
@@ -268,7 +301,7 @@ C<tie>, as in
 
 Requesting C<tie> with a Perl version that can't handle it is a
 fatal error, so the only option that does anything useful is C<sig>
-with a new-ish Perl.  It can be useful when C<tie>-ing STDERR conflicts
+with a new-ish Perl.  It can be useful when C<tie>-ing C<STDERR> conflicts
 with the surrounding code.
 
 =head1 CONFLICTS
@@ -302,6 +335,10 @@ assumed that the program will keep it functioning.  Since we're
 still talking implementation -- it is actually triggered through
 a DESTROY method when the corresponding object goes out of scope.
 C<%SIG> handlers are code objects just for this reason.
+
+=head1 VERSION
+
+This document pertains to C<Vi::Quickfix> version 1.129
 
 =head1 BUGS
 

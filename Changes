@@ -25,9 +25,28 @@ Vi-QuickFix-1_121 Sun May  9 00:17:32 CEST 2004
          re-write.  Added doc chapters IMPLEMENTATION and CONFLICTS
          to the pod.
 
-Vi-QuickFix-1_121 Thu Jul 29 19:45:18 CEST 2004
+Vi-QuickFix-1_122 Thu Jul 29 19:45:18 CEST 2004
        - Doc changes: Now describing ":cf" instead of "vi -q".
        - Another reason for a re-release with little change is that
          spurious failed tests have come back from CPAN testers.
          (The target machine(s) failed to load a standard module.)
          The re-release will hopefully heal that.
+
+Sun Oct  3 18:32:01 CEST 2004
+       - Added pid check to END{} block, so forked kids don't execute it
+
+Thu Oct 28 18:21:57 CEST 2004
+       - Cleaned up a messy bit in Vi::QuickFix::Destructor::DESTROY
+         when run under -c, added tests
+
+Sat Jan  8 22:04:05 CET 2005
+       - Cleaned up failing tests under Win32 (thanks to rjbs)
+
+Sun Jan  9 16:22:40 CET 2005
+       - added environment dependency on VI_QUICKFIX_SOURCEFILE
+       - cleaned up (removed) ca 30 spurious "open" tests
+
+Vi-QuickFix-1_129 Tue Jan 11 12:48:55 CET 2005
+       - fixed bug concerning "perl -MVi::QuickFix source" when source also
+         has "use Vi::QuickFix" (there was some double processing)
+       - released
