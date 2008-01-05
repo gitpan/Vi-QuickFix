@@ -51,7 +51,7 @@ Vi-QuickFix-1_129 Tue Jan 11 12:48:55 CET 2005
          has "use Vi::QuickFix" (there was some double processing)
        - released
 
-Vi-QuickFix-1_32 Tue Jan  1 02:51:29 CET 2008
+Vi-QuickFix-1_132 Tue Jan  1 02:51:29 CET 2008
        - Fixed bugs that came up with different warnings processing in 5.10.0
        - Added eval-detection in sig mode
        - Made error file handle autoflushing
@@ -64,3 +64,6 @@ Thu Jan  3 03:07:41 CET 2008
 Sat Jan  5 04:23:34 CET 2008
        - released
 
+Vi-QuickFix-1_133 Sat Jan  5 18:36:06 CET 2008
+       - removed test in fork mode
+       - released

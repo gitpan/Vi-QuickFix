@@ -248,7 +248,7 @@ unlink qw( stderr_out errors.err);
 ### environment variable VI_QUICKFIX_SOURCEFILE
 BEGIN { $n_tests += 2 }
 {{
-my $cmd = qq(perl -Ilib -MVi::QuickFix=fork ) . REDIRECT;
+my $cmd = qq(perl -Ilib -MVi::QuickFix ) . REDIRECT;
 
 delete $ENV{ VI_QUICKFIX_SOURCEFILE};
 open my $p, '|-', $cmd;
@@ -332,9 +332,6 @@ sub read_errfile {
         last if -e $file;
         diag "delay\n";
         sleep 1;
-    }
-    unless ( -e $file ) {
-        warn("'$file': $!");
     }
 
     open my( $e), '<', $file or return '-';

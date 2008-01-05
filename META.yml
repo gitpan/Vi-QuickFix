@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Vi-QuickFix
-version:             1.132
+version:             1.133
 abstract:            Support for vim's QuickFix mode
 license:             ~
 author:              
