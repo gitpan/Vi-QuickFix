@@ -7,7 +7,7 @@ SYNOPSIS
       use Vi::QuickFix <options>;
       use Vi::QuickFix <options> <errorfile>;
 
-    where "<options>" is one or more of "silent", "sig", and "tie".
+    where "<options>" is one or more of "silent", "sig", "tie", and "fork".
 
 DESCRIPTION
     When "Vi::QuickFix" is active, Perl logs errors and warnings to an
@@ -42,9 +42,9 @@ DESCRIPTION
     will take you there when other error entries don't point it elsewhere.
     Use the "silent" option with "Vi::QuickFix" to suppress this warning.
 
-    It is a fatal error when the error file cannot be opened. If the error
-    file is empty (can only happen with "silent"), it is removed at the end
-    of the run.
+    When the error file cannot be opened, a warning is issued and the
+    program continues running without QuickFix support. If the error file is
+    empty after the run (can only happen with "silent"), it is removed.
 
 ENVIRONMENT
     "Vi::QuickFix" recognizes the environment variable
@@ -77,22 +77,31 @@ USAGE
 IMPLEMENTATION
     For a debugging tool, an implementation note is in order.
 
-    Perl offers to obvious ways to watch and capture its error output. One
-    is through the (pseudo-) signal handlers $SIG{__WARN__} and
+    Perl offers three obvious ways to watch and capture its error output.
+    One is through the (pseudo-) signal handlers $SIG{__WARN__} and
     $SIG{__DIE__}. The other is through "tie"-ing the "STDERR" file handle.
+    A third method involves forking a child process for the capturing and
+    redirect "STDERR" to there.
 
-    "Vi::QuickFix" can use either method to create the error file. As it
-    turns out, the ability to tie "STDERR" is relatively new with Perl, as
-    of version 5.8.1. With Versions 5.8.0 and earlier, a number of internal
-    errors and warnings don't respect tie, so this method cannot be used.
-    With Perl versions ealier than 5.8.1, "Vi::QuickFix" uses %SIG handlers
-    to catch messages. With newer versions, "Vi::Quickfix" ties "STDERR" so
-    that it (additionally) writes to the error file.
+    "Vi::QuickFix" can use these three methods to create the error file. As
+    it turns out, the ability to tie "STDERR" is relatively new with Perl,
+    as of version 5.8.1. With Versions 5.8.0 and earlier, a number of
+    internal errors and warnings don't respect tie, so this method cannot be
+    used. With Perl versions ealier than 5.8.1, "Vi::QuickFix" uses %SIG
+    handlers to catch messages. With newer versions, "Vi::Quickfix" ties
+    "STDERR" so that it (additionally) writes to the error file. The forking
+    method can be used with any version of Perl.
 
-    A specific method can be requested through the options "sig" and "tie",
-    as in
+    A specific method can be requested through the options "sig", "tie" and
+    "fork", as in
 
-        use Vi::QuickFix qw( sig);
+        use Vi::QuickFix qw(sig);
+        use Vi::QuickFix qw(tie);
+        use Vi::QuickFix qw(fork);
+
+    The forking method appears to work well in practice, but a race
+    condition exists that intermittently leads to failing tests. It is not
+    tested in the standard test suite and must be considered experimental.
 
     Requesting "tie" with a Perl version that can't handle it is a fatal
     error, so the only option that does anything useful is "sig" with a
@@ -100,13 +109,10 @@ IMPLEMENTATION
     the surrounding code.
 
 CONFLICTS
-    Such a conflict can occur with the "sig" method as well, and it can
+    Similar conflicts can occur with the "sig" method as well, and it can
     happen in two ways. Either "Vi::QuickFix" already finds a resource (a
     %SIG handler or a tie on "STDERR") occupied at "use" time, or the
     surrounding code commandeers the resource after the fact.
-
-    All such conflicts can be avoided by using "Vi::QuickFix" in a separate
-    process, as noted under ""USAGE".
 
     However, if "STDERR" is already tied when "Vi::QuickFix" is "use"d, it
     cannot employ the "tie" method, and by default reverts to "sig". If the
@@ -131,7 +137,7 @@ CONFLICTS
     are code objects just for this reason.
 
 VERSION
-    This document pertains to "Vi::Quickfix" version 1.129
+    This document pertains to "Vi::Quickfix" version 1.132
 
 BUGS
     "no Vi::QuickFix" has no effect

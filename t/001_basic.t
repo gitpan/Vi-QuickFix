@@ -110,7 +110,7 @@ BEGIN { $n_tests += 2 + 2 * PER_CALL }
 # check -v key (version)
 my $command = qq(perl lib/Vi/QuickFix.pm -v);
 open my $f, "$command |";
-ok( defined $f, "Got a handle");
+ok( defined $f, "got a handle");
 like( scalar <$f>, qr/version *\d+\.\d+/, "-v returns version");
 
 $command = qq(perl lib/Vi/QuickFix.pm -f *ERRFILE* infile) . REDIRECT;
@@ -123,14 +123,14 @@ unlink 'infile', 'outfile';
 
 # do we catch all types of STDERR output?
 use constant CASES => (
-    [ runtime_warning =>     'qq(a) + 0',         'Argument "a"' ],
-    [ runtime_error =>       'my %h = %{ []}',    'Can\'t coerce' ],
+    [ runtime_warning =>     '() = qq(a) + 0',    'Argument "a"' ],
+    [ runtime_error =>       'my %h = %{ \ 0 }',  'Not a HASH'   ],
     [ compiletime_warning => 'my @y; @y = @y[0]', 'Scalar value' ],
     [ compiletime_error =>   '%',                 'syntax error' ],
     [ explicit_warning =>    'warn qq(xxx)',      'xxx'          ],
     [ explicit_error =>      'die qq(yyy)',       'yyy'          ],
 );
-BEGIN { $n_tests += @{ [ CASES]} }
+BEGIN { $n_tests += 2*@{ [ CASES]} }
 {{
 for ( CASES ) {
     my ( $case, $prog, $msg) = @$_;
@@ -139,12 +139,24 @@ for ( CASES ) {
     system $cmd;
     like( read_errfile(), qr/^.*:\d+:$msg/, "$case message");
 }
+for ( CASES ) {
+    my ( $case, $prog, $msg) = @$_;
+    unlink 'errors.err';
+    my $cmd = qq(perl -Ilib -MVi::QuickFix -we "eval '$prog'" ) . REDIRECT;
+    system $cmd;
+    if ( $case =~ /_error$/ ) {
+        $msg = 'QuickFix .* active';
+        like( read_errfile(), qr/^.*:\d+:$msg/, "eval $case no message");
+    } else {
+        like( read_errfile(), qr/^.*:\d+:$msg/, "eval $case message");
+    }
+}
 }}
 
 # repeat these in "sig" mode, if both modes possible
-BEGIN { $n_tests += @{ [ CASES]} }
+BEGIN { $n_tests += 2*@{ [ CASES]} }
 SKIP: {{
-skip REASON_LOW, scalar @{ [ CASES]} if LOW_VERSION;
+skip REASON_LOW, scalar 2*@{ [ CASES]} if LOW_VERSION;
 for ( CASES ) {
     my ( $case, $prog, $msg) = @$_;
     unlink 'errors.err';
@@ -152,6 +164,44 @@ for ( CASES ) {
         qq(perl -Ilib -MVi::QuickFix=sig -we "$prog" ) . REDIRECT;
     system $cmd;
     like( read_errfile(), qr/^.*:\d+:$msg/, "$case(sig) message");
+}
+for ( CASES ) {
+    my ( $case, $prog, $msg) = @$_;
+    unlink 'errors.err';
+    my $cmd =
+        qq(perl -Ilib -MVi::QuickFix=sig -we "eval '$prog'" ) . REDIRECT;
+    system $cmd;
+    if ( $case =~ /_error$/ ) {
+        $msg = 'QuickFix .* active';
+        like( read_errfile(), qr/^.*:\d+:$msg/, "eval $case(sig) no message");
+    } else {
+        like( read_errfile(), qr/^.*:\d+:$msg/, "eval $case(sig) message");
+    }
+}
+}}
+
+# repeat these in "fork" mode
+BEGIN { $n_tests += 2*@{ [ CASES]} }
+SKIP: {{
+skip "'fork' mode currently not testable", 2*@{ [ CASES]};
+for ( CASES ) {
+    my ( $case, $prog, $msg) = @$_;
+    unlink 'errors.err';
+    my $cmd = qq(perl -Ilib -MVi::QuickFix=fork -we "$prog" ) . REDIRECT;
+    system $cmd;
+    like( read_errfile(), qr/^.*:\d+:$msg/, "$case(fork) message");
+}
+for ( CASES ) {
+    my ( $case, $prog, $msg) = @$_;
+    unlink 'errors.err';
+    my $cmd = qq(perl -Ilib -MVi::QuickFix=fork -we "eval '$prog'" ) . REDIRECT;
+    system $cmd;
+    if ( $case =~ /_error$/ ) {
+        $msg = 'QuickFix .* active';
+        like( read_errfile(), qr/^.*:\d+:$msg/, "eval $case(fork) no message");
+    } else {
+        like( read_errfile(), qr/^.*:\d+:$msg/, "eval $case(fork) message");
+    }
 }
 }}
 
@@ -169,7 +219,7 @@ like( (read_errfile())[ -1],
 unlink 'errors.err';
 system qq(perl -Ilib -MVi::QuickFix=silent -we 'warn "abc"' ) . REDIRECT;
 unlike( (read_errfile())[ -1],
-    qr/Vi::QuickFix/, "silent mode message not found");
+    qr/QuickFix/, "silent mode message not found");
 
 # do we get only one obwarn when we fork?
 unlink 'errors.err';
@@ -198,7 +248,7 @@ unlink qw( stderr_out errors.err);
 ### environment variable VI_QUICKFIX_SOURCEFILE
 BEGIN { $n_tests += 2 }
 {{
-my $cmd = qq(perl -Ilib -MVi::QuickFix ) . REDIRECT;
+my $cmd = qq(perl -Ilib -MVi::QuickFix=fork ) . REDIRECT;
 
 delete $ENV{ VI_QUICKFIX_SOURCEFILE};
 open my $p, '|-', $cmd;
@@ -219,8 +269,9 @@ BEGIN { $n_tests += 5 }
 {{
 # unable to create error file
 require Vi::QuickFix;
-eval { Vi::QuickFix->import( 'gibsnich/wirdnix') };
-like( $@, qr/Can't create error file/, "Died without error file");
+local $SIG{__WARN__} = sub { die @_ };
+eval { Vi::QuickFix->import( 'tie', 'gibsnich/wirdnix') };
+like( $@, qr/Can't create error file/, "Warning without error file");
 
 SKIP: {
     skip "Can't be tested with perl $]", 3 if LOW_VERSION;
@@ -234,9 +285,9 @@ SKIP: {
     untie *STDERR;
 
     # accept second use (no action then)
-    Vi::QuickFix->import( 'silent');
+    Vi::QuickFix->import( 'tie', 'silent');
     ok( tied *STDERR, 'Second use: STDERR is tied');
-    eval { Vi::QuickFix->import };
+    eval { Vi::QuickFix->import('tie') };
     like( $@, qr/^$/, 'Second use no error');
     untie *STDERR;
 }
@@ -276,7 +327,17 @@ sub  run_tests {
 
 sub read_errfile {
     my $file = shift || 'errors.err';
-    open my( $e), $file or return;
+    
+    for ( 1, 2 ) {
+        last if -e $file;
+        diag "delay\n";
+        sleep 1;
+    }
+    unless ( -e $file ) {
+        warn("'$file': $!");
+    }
+
+    open my( $e), '<', $file or return '-';
     return join '', <$e> unless wantarray;
     return <$e>;
 }
