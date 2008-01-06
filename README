@@ -137,7 +137,7 @@ CONFLICTS
     are code objects just for this reason.
 
 VERSION
-    This document pertains to "Vi::Quickfix" version 1.133
+    This document pertains to "Vi::Quickfix" version 1.134
 
 BUGS
     "no Vi::QuickFix" has no effect

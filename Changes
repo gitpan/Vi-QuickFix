@@ -67,3 +67,9 @@ Sat Jan  5 04:23:34 CET 2008
 Vi-QuickFix-1_133 Sat Jan  5 18:36:06 CET 2008
        - removed test in fork mode
        - released
+
+Vi_QuickFix_1_134 Sun Jan  6 23:56:31 CET 2008
+       - fixed a rather embarrassing mistake in t/001_basic. Calling
+         $^X now instead of 'perl'.  That would account for "mysterious"
+         fails with cpan testers.
+       - released

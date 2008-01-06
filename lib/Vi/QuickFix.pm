@@ -6,7 +6,7 @@ use strict; use warnings;
 
 our $VERSION;
 BEGIN {
-    $VERSION = ('$Revision: 1.133 $' =~ /(\d+.\d+)/)[ 0];
+    $VERSION = ('$Revision: 1.134 $' =~ /(\d+.\d+)/)[ 0];
 }
 
 unless ( caller ) {
@@ -430,7 +430,7 @@ C<%SIG> handlers are code objects just for this reason.
 
 =head1 VERSION
 
-This document pertains to C<Vi::Quickfix> version 1.133
+This document pertains to C<Vi::Quickfix> version 1.134
 
 =head1 BUGS
 
